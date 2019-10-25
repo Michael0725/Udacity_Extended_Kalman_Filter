@@ -4,7 +4,6 @@
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
 using std::vector;
-using namespace std;
 
 Tools::Tools() {}
 
@@ -16,25 +15,35 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
    * TODO: Calculate the RMSE here.
    */
   VectorXd rmse(4);
-  rmse << 0,0,0,0;
-  if(estimations.size() != ground_truth.size()
-          || estimations.size() == 0){
-      cout << "Invalid estimation or ground_truth data" << endl;
-      return rmse;
-  }
-  for(int i=0; i < estimations.size(); ++i){
+  rmse << 0, 0, 0, 0;
+
+// check the validity of the following inputs:
+//  * the estimation vector size should not be zero
+//  * the estimation vector size should equal ground truth vector size
+   if (estimations.size() != ground_truth.size()
+       || estimations.size() == 0) {
+       cout << "Invalid estimation or ground_truth data" << endl;
+       return rmse;
+}
+
+//accumulate squared residuals
+   for (unsigned int i = 0; i < estimations.size(); ++i) {
+
       VectorXd residual = estimations[i] - ground_truth[i];
-      
-      //Coefficient-wise multiplication
+
+//coefficient-wise multiplication
       residual = residual.array()*residual.array();
       rmse += residual;
-  }
-     rmse = rmse/estimations.size();
+}
 
-  //Calculate the squared root
-  rmse = rmse.array().sqrt();
+//calculate the mean
+rmse = rmse / estimations.size();
 
-  return rmse;
+//calculate the squared root
+rmse = rmse.array().sqrt();
+
+//return the result
+    return rmse;
 }
 
 MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
@@ -42,31 +51,23 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
    * TODO:
    * Calculate a Jacobian here.
    */
-  MatrixXd Hj(3,4);
-  
-  //Recover state parameters
-  float px = x_state(0);
-  float py = x_state(1);
-  float vx = x_state(2);
-  float vy = x_state(3);
-  
-   //Pre-compute a set of terms to avoid repeated calculation
-  float c1 = px*px+py*py;
-  float c2 = sqrt(c1);
-  float c3 = (c1*c2);
-  
-  //Check division by zero
-  if (fabs(c1) < 0.0001){
-      std::cout << "CalculateJacobian () - Error - Division by Zero" << std::endl;
-      Hj.fill(0.0);
-      return Hj;
-  }
-  
-  //Compute the Jacobian matrix
-  Hj << (px / c2), (py / c2), 0, 0,
-      -(py / c1), (px / c1), 0, 0,
-      py*(vx*py - vy*px) / c3, px*(px*vy - py*vx) / c3, px / c2, py / c2;
+  MatrixXd Hjacobian = MatrixXd(3, 4);
+   float px = x_state(0);
+   float py = x_state(1);
+   float vx = x_state(2);
+   float vy = x_state(3);
 
-  return Hj;  
-}
+   float pos2 = (px * px) + (py * py);
+   float Hj00 = px / (sqrt(pos2));
+   float Hj01 = py / (sqrt(pos2));
+   float Hj10 = -py / pos2;
+   float Hj11 = px / pos2;
+   float Hj20 = (py*(vx*py - vy*px)) / pow(pos2, 1.5);
+   float Hj21 = (px*(vy*px - vx*py)) / pow(pos2, 1.5);
+
+   Hjacobian << Hj00, Hj01, 0, 0,
+          Hj10, Hj11, 0, 0,
+          Hj20, Hj21, Hj00, Hj01;
   
+           return Hjacobian;
+}
